@@ -160,6 +160,22 @@ clean_dataset <- function(df, strip_control = FALSE) {
   list(data = df, report = report_df)
 }
 
+# ---- Load the bundled code templates at startup ------------------
+# These are standalone scripts that do the same cleaning as the
+# app. Users can view them in the "View Code" tab and download
+# them to drop straight into their own R / SAS pipelines.
+code_r_path   <- file.path("code_templates", "clean_special_chars.R")
+code_sas_path <- file.path("code_templates", "clean_special_chars.sas")
+read_code <- function(p, fallback) {
+  if (file.exists(p)) paste(readLines(p, warn = FALSE, encoding = "UTF-8"),
+                            collapse = "\n")
+  else fallback
+}
+code_r_text   <- read_code(code_r_path,
+                           "# clean_special_chars.R not found in deployment")
+code_sas_text <- read_code(code_sas_path,
+                           "* clean_special_chars.sas not found in deployment ;")
+
 # ---- Sample dataset with intentional special characters ----------
 # Includes both non-ASCII chars (accents, smart quotes, em-dashes,
 # currency symbols, etc.) AND a handful of ASCII control characters
@@ -228,6 +244,14 @@ ui <- page_navbar(
       .ctrl-help-popover .popover-body table td,
       .ctrl-help-popover .popover-body table th { padding:.2rem .4rem;
                                                   font-size:.8rem; }
+      .code-block { background:#1f2933; color:#f5f7fa; padding:1rem 1.25rem;
+                    border-radius:.5rem; overflow:auto; max-height:640px;
+                    font-size:.82rem; line-height:1.5; white-space:pre;
+                    font-family: 'JetBrains Mono', Consolas, 'Courier New', monospace;
+                    border: 1px solid #2c3e50; }
+      .code-toolbar { display:flex; justify-content:space-between;
+                      align-items:center; margin-bottom:.5rem; gap:.5rem; }
+      .code-toolbar .btn { font-size:.85rem; }
     "))
   ),
 
@@ -327,6 +351,39 @@ ui <- page_navbar(
           uiOutput("report_summary"),
           DTOutput("report_table")
         )
+      )
+    )
+  ),
+
+  nav_panel(
+    title = tagList(bs_icon("code-slash"), " View Code"),
+    div(class = "hero",
+        h4("Do this in your own pipeline"),
+        p("These are standalone scripts that replicate the app's cleaning logic. ",
+          "Drop them into your own R project or SAS program and call them directly \u2014 ",
+          "no Shiny required.")),
+    navset_card_tab(
+      id = "code_tabs",
+      nav_panel(
+        title = tagList(bs_icon("braces"), " R script"),
+        div(class = "code-toolbar",
+            span(tags$code("clean_special_chars.R"),
+                 " \u00b7 requires ", tags$code("haven"), ", ",
+                 tags$code("stringi")),
+            downloadButton("dl_code_r", " Download .R",
+                           icon = bs_icon("download"),
+                           class = "btn-primary btn-sm")),
+        tags$pre(class = "code-block", code_r_text)
+      ),
+      nav_panel(
+        title = tagList(bs_icon("terminal"), " SAS program"),
+        div(class = "code-toolbar",
+            span(tags$code("clean_special_chars.sas"),
+                 " \u00b7 requires UTF-8 SAS session"),
+            downloadButton("dl_code_sas", " Download .sas",
+                           icon = bs_icon("download"),
+                           class = "btn-primary btn-sm")),
+        tags$pre(class = "code-block", code_sas_text)
       )
     )
   ),
@@ -543,6 +600,19 @@ server <- function(input, output, session) {
     # stable regardless of the current working directory.
     file.path(getwd(), "data", paste0("sample_specialchars.", ext))
   }
+
+  # ---- Code-template downloads ----
+  # Write the in-memory code text to Shiny's tempfile `f`.
+  # Using writeLines (rather than file.copy) so it works the same
+  # whether or not the source file was bundled at deploy time.
+  output$dl_code_r <- downloadHandler(
+    filename = function() "clean_special_chars.R",
+    content  = function(f) writeLines(code_r_text, f, useBytes = TRUE)
+  )
+  output$dl_code_sas <- downloadHandler(
+    filename = function() "clean_special_chars.sas",
+    content  = function(f) writeLines(code_sas_text, f, useBytes = TRUE)
+  )
 
   output$dl_sample_rds <- downloadHandler(
     filename = function() "sample_specialchars.rds",

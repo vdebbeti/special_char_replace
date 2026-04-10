@@ -1,0 +1,12 @@
+name: special_char_replace
+title: special_char_replace
+username: clinstandards
+account: clinstandards
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 17107049
+bundleId: 11834436
+url: https://clinstandards.shinyapps.io/special_char_replace/
+version: 1
+asMultiple: FALSE
+asStatic: FALSE
